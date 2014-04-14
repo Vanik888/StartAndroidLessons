@@ -27,7 +27,7 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
         rgTimeFormat = (RadioGroup) findViewById(R.id.rgTimeFormat);
 
         Bundle bndl = new Bundle();
-        bndl.putString(TimeLoader.ARGS_TIME_FORMAT, getTimeFormat());
+        bndl.putString(TimeAsyncTaskLoader.ARGS_TIME_FORMAT, getTimeFormat());
         getLoaderManager().initLoader(LOADER_TIME_ID, bndl, this);
         lastCheckedId = rgTimeFormat.getCheckedRadioButtonId();
     }
@@ -36,7 +36,7 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
     public Loader<String> onCreateLoader(int id, Bundle args) {
         Loader<String> loader = null;
         if (id == LOADER_TIME_ID) {
-            loader = new TimeLoader(this, args);
+            loader = new TimeAsyncTaskLoader(this, args);
             Log.d(LOG_TAG, "onCreateLoader: " + loader.hashCode());
         }
         return loader;
@@ -62,7 +62,7 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
             loader = getLoaderManager().getLoader(LOADER_TIME_ID);
         } else {
             Bundle bndl = new Bundle();
-            bndl.putString(TimeLoader.ARGS_TIME_FORMAT, getTimeFormat());
+            bndl.putString(TimeAsyncTaskLoader.ARGS_TIME_FORMAT, getTimeFormat());
             loader = getLoaderManager().restartLoader(LOADER_TIME_ID, bndl,
                     this);
             lastCheckedId = id;
@@ -84,13 +84,13 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
     }
 
     String getTimeFormat() {
-        String result = TimeLoader.TIME_FORMAT_SHORT;
+        String result = TimeAsyncTaskLoader.TIME_FORMAT_SHORT;
         switch (rgTimeFormat.getCheckedRadioButtonId()) {
             case R.id.rdShort:
-                result = TimeLoader.TIME_FORMAT_SHORT;
+                result = TimeAsyncTaskLoader.TIME_FORMAT_SHORT;
                 break;
             case R.id.rdLong:
-                result = TimeLoader.TIME_FORMAT_LONG;
+                result = TimeAsyncTaskLoader.TIME_FORMAT_LONG;
                 break;
         }
         return result;
