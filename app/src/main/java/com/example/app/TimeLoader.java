@@ -18,7 +18,7 @@ import android.util.Log;
 public class TimeLoader extends Loader<String> {
 
     final String LOG_TAG = "myLogs";
-    final int PAUSE = 10;
+    final int PAUSE = 3;
 
     public final static String ARGS_TIME_FORMAT = "time_format";
     public final static String TIME_FORMAT_SHORT = "h:mm:ss a";
@@ -40,7 +40,10 @@ public class TimeLoader extends Loader<String> {
     protected void onStartLoading() {
         super.onStartLoading();
         Log.d(LOG_TAG, hashCode() + " onStartLoading");
+        if (takeContentChanged())
+            forceLoad();
     }
+
 
     @Override
     protected void onStopLoading() {
@@ -57,6 +60,7 @@ public class TimeLoader extends Loader<String> {
         getTimeTask = new GetTimeTask();
         getTimeTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, format);
     }
+
 
     @Override
     protected void onAbandon() {

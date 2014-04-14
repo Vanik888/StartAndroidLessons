@@ -3,6 +3,7 @@ package com.example.app;
 import android.app.Activity;
 import android.app.LoaderManager.LoaderCallbacks;
 import android.content.Loader;
+import android.database.ContentObserver;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -69,6 +70,19 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
         loader.forceLoad();
     }
 
+
+    public void observerClick(View v) {
+        Log.d(LOG_TAG, "observerClick");
+        Loader<String> loader = getLoaderManager().getLoader(LOADER_TIME_ID);
+        final ContentObserver observer = loader.new ForceLoadContentObserver();
+        v.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                observer.dispatchChange(false);
+            }
+        }, 5000);
+    }
+
     String getTimeFormat() {
         String result = TimeLoader.TIME_FORMAT_SHORT;
         switch (rgTimeFormat.getCheckedRadioButtonId()) {
@@ -80,9 +94,6 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
                 break;
         }
         return result;
-    }
-
-    public void observerClick(View v) {
     }
 
 }
