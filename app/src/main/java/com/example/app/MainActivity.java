@@ -1,99 +1,121 @@
 package com.example.app;
 
-import android.app.Activity;
-import android.app.LoaderManager.LoaderCallbacks;
-import android.content.Loader;
-import android.database.ContentObserver;
+import java.util.concurrent.TimeUnit;
+
+import android.content.Context;
+import android.database.Cursor;
 import android.os.Bundle;
-import android.util.Log;
+import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.LoaderManager.LoaderCallbacks;
+import android.support.v4.content.CursorLoader;
+import android.support.v4.content.Loader;
+import android.support.v4.widget.SimpleCursorAdapter;
+import android.view.ContextMenu;
+import android.view.ContextMenu.ContextMenuInfo;
+import android.view.MenuItem;
 import android.view.View;
-import android.widget.RadioGroup;
-import android.widget.TextView;
+import android.widget.AdapterView.AdapterContextMenuInfo;
+import android.widget.ListView;
 
-public class MainActivity extends Activity implements LoaderCallbacks<String> {
+public class MainActivity extends FragmentActivity implements LoaderCallbacks<Cursor> {
 
-    final String LOG_TAG = "myLogs";
-    static final int LOADER_TIME_ID = 1;
+    private static final int CM_DELETE_ID = 1;
+    ListView lvData;
+    DB db;
+    SimpleCursorAdapter scAdapter;
 
-    TextView tvTime;
-    RadioGroup rgTimeFormat;
-    static int lastCheckedId = 0;
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    /** Called when the activity is first created. */
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        tvTime = (TextView) findViewById(R.id.tvTime);
-        rgTimeFormat = (RadioGroup) findViewById(R.id.rgTimeFormat);
 
-        Bundle bndl = new Bundle();
-        bndl.putString(TimeAsyncTaskLoader.ARGS_TIME_FORMAT, getTimeFormat());
-        getLoaderManager().initLoader(LOADER_TIME_ID, bndl, this);
-        lastCheckedId = rgTimeFormat.getCheckedRadioButtonId();
+        // открываем подключение к БД
+        db = new DB(this);
+        db.open();
+
+        // формируем столбцы сопоставления
+        String[] from = new String[] { DB.COLUMN_IMG, DB.COLUMN_TXT };
+        int[] to = new int[] { R.id.ivImg, R.id.tvText };
+
+        // создааем адаптер и настраиваем список
+        scAdapter = new SimpleCursorAdapter(this, R.layout.item, null, from, to, 0);
+        lvData = (ListView) findViewById(R.id.lvData);
+        lvData.setAdapter(scAdapter);
+
+        // добавляем контекстное меню к списку
+        registerForContextMenu(lvData);
+
+        // создаем лоадер для чтения данных
+        getSupportLoaderManager().initLoader(0, null, this);
     }
 
-    @Override
-    public Loader<String> onCreateLoader(int id, Bundle args) {
-        Loader<String> loader = null;
-        if (id == LOADER_TIME_ID) {
-            loader = new TimeAsyncTaskLoader(this, args);
-            Log.d(LOG_TAG, "onCreateLoader: " + loader.hashCode());
+    // обработка нажатия кнопки
+    public void onButtonClick(View view) {
+        // добавляем запись
+        db.addRec("sometext " + (scAdapter.getCount() + 1), R.drawable.ic_launcher);
+        // получаем новый курсор с данными
+        getSupportLoaderManager().getLoader(0).forceLoad();
+    }
+
+    public void onCreateContextMenu(ContextMenu menu, View v,
+                                    ContextMenuInfo menuInfo) {
+        super.onCreateContextMenu(menu, v, menuInfo);
+        menu.add(0, CM_DELETE_ID, 0, R.string.delete_record);
+    }
+
+    public boolean onContextItemSelected(MenuItem item) {
+        if (item.getItemId() == CM_DELETE_ID) {
+            // получаем из пункта контекстного меню данные по пункту списка
+            AdapterContextMenuInfo acmi = (AdapterContextMenuInfo) item
+                    .getMenuInfo();
+            // извлекаем id записи и удаляем соответствующую запись в БД
+            db.delRec(acmi.id);
+            // получаем новый курсор с данными
+            getSupportLoaderManager().getLoader(0).forceLoad();
+            return true;
         }
-        return loader;
+        return super.onContextItemSelected(item);
+    }
+
+    protected void onDestroy() {
+        super.onDestroy();
+        // закрываем подключение при выходе
+        db.close();
     }
 
     @Override
-    public void onLoadFinished(Loader<String> loader, String result) {
-        Log.d(LOG_TAG, "onLoadFinished for loader " + loader.hashCode()
-                + ", result = " + result);
-        tvTime.setText(result);
+    public Loader<Cursor> onCreateLoader(int id, Bundle bndl) {
+        return new MyCursorLoader(this, db);
     }
 
     @Override
-    public void onLoaderReset(Loader<String> loader) {
-        Log.d(LOG_TAG, "onLoaderReset for loader " + loader.hashCode());
+    public void onLoadFinished(Loader<Cursor> loader, Cursor cursor) {
+        scAdapter.swapCursor(cursor);
     }
 
-    public void getTimeClick(View v) {
-        Loader<String> loader;
+    @Override
+    public void onLoaderReset(Loader<Cursor> loader) {
+    }
 
-        int id = rgTimeFormat.getCheckedRadioButtonId();
-        if (id == lastCheckedId) {
-            loader = getLoaderManager().getLoader(LOADER_TIME_ID);
-        } else {
-            Bundle bndl = new Bundle();
-            bndl.putString(TimeAsyncTaskLoader.ARGS_TIME_FORMAT, getTimeFormat());
-            loader = getLoaderManager().restartLoader(LOADER_TIME_ID, bndl,
-                    this);
-            lastCheckedId = id;
+    static class MyCursorLoader extends CursorLoader {
+
+        DB db;
+
+        public MyCursorLoader(Context context, DB db) {
+            super(context);
+            this.db = db;
         }
-        loader.forceLoad();
-    }
 
-
-    public void observerClick(View v) {
-        Log.d(LOG_TAG, "observerClick");
-        Loader<String> loader = getLoaderManager().getLoader(LOADER_TIME_ID);
-        final ContentObserver observer = loader.new ForceLoadContentObserver();
-        v.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                observer.dispatchChange(false);
+        @Override
+        public Cursor loadInBackground() {
+            Cursor cursor = db.getAllData();
+            try {
+                TimeUnit.SECONDS.sleep(3);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-        }, 5000);
-    }
-
-    String getTimeFormat() {
-        String result = TimeAsyncTaskLoader.TIME_FORMAT_SHORT;
-        switch (rgTimeFormat.getCheckedRadioButtonId()) {
-            case R.id.rdShort:
-                result = TimeAsyncTaskLoader.TIME_FORMAT_SHORT;
-                break;
-            case R.id.rdLong:
-                result = TimeAsyncTaskLoader.TIME_FORMAT_LONG;
-                break;
+            return cursor;
         }
-        return result;
-    }
 
+    }
 }
